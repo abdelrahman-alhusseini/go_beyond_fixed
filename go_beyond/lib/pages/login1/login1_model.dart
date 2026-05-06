@@ -1,0 +1,1 @@
+class Login1Model {}
