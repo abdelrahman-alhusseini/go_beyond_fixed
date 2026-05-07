@@ -1,6 +1,8 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'firebase_options.dart';
 import 'pages/completed/completed_widget.dart';
 import 'pages/create_account/create_account_widget.dart';
 import 'pages/create_challange/create_challange_widget.dart';
@@ -10,7 +12,13 @@ import 'pages/login1/login1_widget.dart';
 import 'pages/main_page/main_page_widget.dart';
 import 'pages/tracker/tracker_widget.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const GoBeyondApp());
 }
 
@@ -23,7 +31,9 @@ class GoBeyondApp extends StatelessWidget {
       title: 'GoBeyond',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFCF4A14)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFCF4A14),
+        ),
         useMaterial3: true,
       ),
       routerConfig: _router,

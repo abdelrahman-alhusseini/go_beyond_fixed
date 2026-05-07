@@ -12,9 +12,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cloud_firestore: 5.6.9
-  firebase_auth: 5.6.0
-  firebase_core: 3.14.0
+  cloud_firestore: ^5.6.10
+  firebase_auth: ^5.6.1
+  firebase_core: ^3.15.0
   firebase_storage: 12.4.7
   cached_network_image: 3.4.1
   google_fonts: 6.3.3

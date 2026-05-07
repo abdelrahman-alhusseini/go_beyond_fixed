@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '/services/profile_storage.dart';
+
 import '/utils/validators.dart';
 import '../home/home_widget.dart';
 import '../login1/login1_widget.dart';
@@ -21,8 +23,10 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -40,50 +44,107 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
     final confirmPassword = confirmPasswordController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your name.'),
-        ),
-      );
+      showMessage('Please enter your name.');
       return;
     }
 
     if (!isValidEmail(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid email address.'),
-        ),
-      );
+      showMessage('Please enter a valid email address.');
       return;
     }
 
     if (!isStrongPassword(password)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Password must be at least 8 characters and include uppercase, number, and special character.',
-          ),
-        ),
+      showMessage(
+        'Password must be at least 8 characters and include uppercase, number, and special character.',
       );
       return;
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Passwords do not match.'),
-        ),
-      );
+      showMessage('Passwords do not match.');
       return;
     }
 
-    await ProfileStorage.saveSignupInfo(
-      name: name,
-      email: email,
-    );
+    setState(() {
+      isLoading = true;
+    });
 
+    try {
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = credential.user;
+
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-null',
+          message: 'Firebase did not return a user account.',
+        );
+      }
+
+      await user.updateDisplayName(name);
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': name,
+        'email': email,
+        'city': '',
+        'bio': '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      showMessage('Account created successfully.');
+
+      context.goNamed(MainPageWidget.routeName);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Firebase Auth Error Code: ${e.code}');
+      debugPrint('Firebase Auth Error Message: ${e.message}');
+
+      String message = 'Firebase Auth Error: ${e.code}';
+
+      if (e.message != null && e.message!.isNotEmpty) {
+        message = 'Firebase Auth Error: ${e.code} - ${e.message}';
+      }
+
+      showMessage(message);
+    } on FirebaseException catch (e) {
+      debugPrint('Firebase Error Code: ${e.code}');
+      debugPrint('Firebase Error Message: ${e.message}');
+
+      String message = 'Firebase Error: ${e.code}';
+
+      if (e.message != null && e.message!.isNotEmpty) {
+        message = 'Firebase Error: ${e.code} - ${e.message}';
+      }
+
+      showMessage(message);
+    } catch (e) {
+      debugPrint('Unexpected Error: $e');
+      showMessage('Unexpected Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  void showMessage(String message) {
     if (!mounted) return;
-    context.goNamed(MainPageWidget.routeName);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 7),
+      ),
+    );
   }
 
   @override
@@ -94,6 +155,7 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
       children: [
         TextField(
           controller: nameController,
+          enabled: !isLoading,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(
             labelText: 'Full Name',
@@ -103,6 +165,7 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
         const SizedBox(height: 16),
         TextField(
           controller: emailController,
+          enabled: !isLoading,
           keyboardType: TextInputType.emailAddress,
           decoration: const InputDecoration(
             labelText: 'Email',
@@ -112,32 +175,48 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
         const SizedBox(height: 16),
         TextField(
           controller: passwordController,
+          enabled: !isLoading,
           obscureText: obscurePassword,
           decoration: InputDecoration(
             labelText: 'Password',
             border: const OutlineInputBorder(),
             suffixIcon: IconButton(
-              icon: Icon(obscurePassword
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined),
-              onPressed: () =>
-                  setState(() => obscurePassword = !obscurePassword),
+              icon: Icon(
+                obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
+              onPressed: isLoading
+                  ? null
+                  : () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
             ),
           ),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: confirmPasswordController,
+          enabled: !isLoading,
           obscureText: obscureConfirmPassword,
           decoration: InputDecoration(
             labelText: 'Confirm Password',
             border: const OutlineInputBorder(),
             suffixIcon: IconButton(
-              icon: Icon(obscureConfirmPassword
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined),
-              onPressed: () => setState(
-                  () => obscureConfirmPassword = !obscureConfirmPassword),
+              icon: Icon(
+                obscureConfirmPassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
+              onPressed: isLoading
+                  ? null
+                  : () {
+                      setState(() {
+                        obscureConfirmPassword = !obscureConfirmPassword;
+                      });
+                    },
             ),
           ),
         ),
@@ -146,21 +225,34 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: createAccount,
+            onPressed: isLoading ? null : createAccount,
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFCF4A14),
-                foregroundColor: Colors.white),
-            child: const Text('Create Account'),
+              backgroundColor: const Color(0xFFCF4A14),
+              foregroundColor: Colors.white,
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Create Account'),
           ),
         ),
         const SizedBox(height: 14),
         TextButton(
-          onPressed: () => context.pushNamed(Login1Widget.routeName),
+          onPressed: isLoading
+              ? null
+              : () => context.pushNamed(Login1Widget.routeName),
           child: const Text('Already have an account? Sign In here'),
         ),
         const SizedBox(height: 8),
         TextButton(
-          onPressed: () => context.goNamed(HomeWidget.routeName),
+          onPressed:
+              isLoading ? null : () => context.goNamed(HomeWidget.routeName),
           child: const Text('Back to Home'),
         ),
       ],

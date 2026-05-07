@@ -1,7 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/services/profile_storage.dart';
 import '../home/home_widget.dart';
 
 class EditProfileWidget extends StatefulWidget {
@@ -21,26 +22,139 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
   final bioController = TextEditingController();
 
   bool isLoading = true;
+  bool isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    loadSavedProfile();
+    loadProfileFromFirebase();
   }
 
-  Future<void> loadSavedProfile() async {
-    final profile = await ProfileStorage.loadProfile();
+  Future<void> loadProfileFromFirebase() async {
+    final user = FirebaseAuth.instance.currentUser;
 
-    nameController.text = profile['name'] ?? '';
-    emailController.text = profile['email'] ?? '';
-    cityController.text = profile['city'] ?? '';
-    bioController.text = profile['bio'] ?? '';
+    if (user == null) {
+      if (!mounted) return;
 
-    if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to edit your profile.'),
+        ),
+      );
+
+      context.goNamed(HomeWidget.routeName);
+      return;
+    }
+
+    try {
+      emailController.text = user.email ?? '';
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+
+        nameController.text = data?['name'] ?? user.displayName ?? '';
+        cityController.text = data?['city'] ?? '';
+        bioController.text = data?['bio'] ?? '';
+      } else {
+        nameController.text = user.displayName ?? '';
+
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': user.displayName ?? '',
+          'email': user.email ?? '',
+          'city': '',
+          'bio': '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load profile: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> saveProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to save your profile.'),
+        ),
+      );
+      return;
+    }
+
+    final name = nameController.text.trim();
+    final city = cityController.text.trim();
+    final bio = bioController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your name.'),
+        ),
+      );
+      return;
+    }
 
     setState(() {
-      isLoading = false;
+      isSaving = true;
     });
+
+    try {
+      await user.updateDisplayName(name);
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': name,
+        'email': user.email ?? emailController.text.trim(),
+        'city': city,
+        'bio': bio,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile saved successfully.'),
+        ),
+      );
+
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not save profile: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
+    }
   }
 
   @override
@@ -50,35 +164,6 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
     cityController.dispose();
     bioController.dispose();
     super.dispose();
-  }
-
-  Future<void> saveProfile() async {
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
-    final city = cityController.text.trim();
-    final bio = bioController.text.trim();
-
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name.')),
-      );
-      return;
-    }
-
-    await ProfileStorage.saveProfile(
-      name: name,
-      email: email,
-      city: city,
-      bio: bio,
-    );
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile saved')),
-    );
-
-    context.pop();
   }
 
   @override
@@ -105,6 +190,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
           const SizedBox(height: 24),
           TextField(
             controller: nameController,
+            enabled: !isSaving,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Your Name',
@@ -114,15 +200,18 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
           const SizedBox(height: 16),
           TextField(
             controller: emailController,
+            enabled: false,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
               labelText: 'Email',
               border: OutlineInputBorder(),
+              helperText: 'Email is linked to your login account.',
             ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: cityController,
+            enabled: !isSaving,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Your City',
@@ -132,6 +221,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
           const SizedBox(height: 16),
           TextField(
             controller: bioController,
+            enabled: !isSaving,
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
@@ -143,17 +233,27 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
           SizedBox(
             height: 50,
             child: ElevatedButton(
-              onPressed: saveProfile,
+              onPressed: isSaving ? null : saveProfile,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFCF4A14),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Save Changes'),
+              child: isSaving
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Save Changes'),
             ),
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => context.goNamed(HomeWidget.routeName),
+            onPressed:
+                isSaving ? null : () => context.goNamed(HomeWidget.routeName),
             child: const Text('Back to Home'),
           ),
         ],

@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../home/home_widget.dart';
+
 import '../tracker/tracker_widget.dart';
 
 class CreateChallangeWidget extends StatefulWidget {
@@ -15,9 +17,11 @@ class CreateChallangeWidget extends StatefulWidget {
 
 class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
   final nameController = TextEditingController();
+
   String type = 'Health';
   String difficulty = 'Easy';
   DateTime startDate = DateTime.now();
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -32,35 +36,98 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
     );
+
     if (selected != null) {
-      setState(() => startDate = selected);
+      setState(() {
+        startDate = selected;
+      });
     }
   }
 
-  void createChallenge() {
+  Future<void> createChallenge() async {
+    final user = FirebaseAuth.instance.currentUser;
     final name = nameController.text.trim();
-    if (name.isEmpty) {
+
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a challenge name.')),
+        const SnackBar(
+          content: Text('You must be logged in to create a challenge.'),
+        ),
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Challenge created: $name')),
-    );
-    context.goNamed(TrackerWidget.routeName);
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a challenge name.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('challenges').add({
+        'title': name,
+        'type': type,
+        'difficulty': difficulty,
+        'startDate': Timestamp.fromDate(startDate),
+        'status': 'active',
+        'userId': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Challenge created: $name'),
+        ),
+      );
+
+      context.goNamed(TrackerWidget.routeName);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not create challenge: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  String get formattedStartDate {
+    final year = startDate.year;
+    final month = startDate.month.toString().padLeft(2, '0');
+    final day = startDate.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Challenge')),
+      appBar: AppBar(
+        title: const Text('Create Challenge'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
           TextField(
             controller: nameController,
+            enabled: !isLoading,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Challenge name',
@@ -71,29 +138,49 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
           DropdownButtonFormField<String>(
             initialValue: type,
             decoration: const InputDecoration(
-                labelText: 'Challenge Type', border: OutlineInputBorder()),
+              labelText: 'Challenge Type',
+              border: OutlineInputBorder(),
+            ),
             items: const [
               DropdownMenuItem(value: 'Health', child: Text('Health')),
               DropdownMenuItem(value: 'Fitness', child: Text('Fitness')),
               DropdownMenuItem(
-                  value: 'Mental Wellness', child: Text('Mental Wellness')),
+                value: 'Mental Wellness',
+                child: Text('Mental Wellness'),
+              ),
               DropdownMenuItem(
-                  value: 'Productivity', child: Text('Productivity')),
+                value: 'Productivity',
+                child: Text('Productivity'),
+              ),
               DropdownMenuItem(value: 'Learning', child: Text('Learning')),
             ],
-            onChanged: (value) => setState(() => type = value ?? 'Health'),
+            onChanged: isLoading
+                ? null
+                : (value) {
+                    setState(() {
+                      type = value ?? 'Health';
+                    });
+                  },
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: difficulty,
             decoration: const InputDecoration(
-                labelText: 'Difficulty', border: OutlineInputBorder()),
+              labelText: 'Difficulty',
+              border: OutlineInputBorder(),
+            ),
             items: const [
               DropdownMenuItem(value: 'Easy', child: Text('Easy')),
               DropdownMenuItem(value: 'Medium', child: Text('Medium')),
               DropdownMenuItem(value: 'Hard', child: Text('Hard')),
             ],
-            onChanged: (value) => setState(() => difficulty = value ?? 'Easy'),
+            onChanged: isLoading
+                ? null
+                : (value) {
+                    setState(() {
+                      difficulty = value ?? 'Easy';
+                    });
+                  },
           ),
           const SizedBox(height: 16),
           ListTile(
@@ -102,20 +189,29 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
               borderRadius: BorderRadius.circular(4),
             ),
             title: const Text('Start Date'),
-            subtitle: Text(
-                '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}'),
+            subtitle: Text(formattedStartDate),
             trailing: const Icon(Icons.calendar_month),
-            onTap: pickStartDate,
+            onTap: isLoading ? null : pickStartDate,
           ),
           const SizedBox(height: 24),
           SizedBox(
             height: 50,
             child: ElevatedButton(
-              onPressed: createChallenge,
+              onPressed: isLoading ? null : createChallenge,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFCF4A14),
-                  foregroundColor: Colors.white),
-              child: const Text('Let’s Go!'),
+                backgroundColor: const Color(0xFFCF4A14),
+                foregroundColor: Colors.white,
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Let’s Go!'),
             ),
           ),
         ],
