@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/utils/validators.dart';
 import '../create_account/create_account_widget.dart';
+import '../home/home_widget.dart';
 import '../main_page/main_page_widget.dart';
 
 class Login1Widget extends StatefulWidget {
@@ -27,12 +29,27 @@ class _Login1WidgetState extends State<Login1Widget> {
   }
 
   void signIn() {
-    if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (!isValidEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password.')),
+        const SnackBar(
+          content: Text('Please enter a valid email address.'),
+        ),
       );
       return;
     }
+
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your password.'),
+        ),
+      );
+      return;
+    }
+
     context.goNamed(MainPageWidget.routeName);
   }
 
@@ -45,7 +62,8 @@ class _Login1WidgetState extends State<Login1Widget> {
         TextField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+              labelText: 'Email', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 16),
         TextField(
@@ -55,8 +73,11 @@ class _Login1WidgetState extends State<Login1Widget> {
             labelText: 'Password',
             border: const OutlineInputBorder(),
             suffixIcon: IconButton(
-              icon: Icon(obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-              onPressed: () => setState(() => obscurePassword = !obscurePassword),
+              icon: Icon(obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined),
+              onPressed: () =>
+                  setState(() => obscurePassword = !obscurePassword),
             ),
           ),
         ),
@@ -66,7 +87,9 @@ class _Login1WidgetState extends State<Login1Widget> {
           height: 48,
           child: ElevatedButton(
             onPressed: signIn,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFCF4A14), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFCF4A14),
+                foregroundColor: Colors.white),
             child: const Text('Sign In'),
           ),
         ),
@@ -75,13 +98,22 @@ class _Login1WidgetState extends State<Login1Widget> {
           onPressed: () => context.pushNamed(CreateAccountWidget.routeName),
           child: const Text('Don’t have an account? Sign Up here'),
         ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => context.goNamed(HomeWidget.routeName),
+          child: const Text('Back to Home'),
+        ),
       ],
     );
   }
 }
 
 class AuthScaffold extends StatelessWidget {
-  const AuthScaffold({super.key, required this.title, required this.subtitle, required this.children});
+  const AuthScaffold(
+      {super.key,
+      required this.title,
+      required this.subtitle,
+      required this.children});
 
   final String title;
   final String subtitle;
@@ -100,7 +132,9 @@ class AuthScaffold extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold)),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 34, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(subtitle),
                 const SizedBox(height: 28),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import '../home/home_widget.dart';
 import '../tracker/tracker_widget.dart';
 
 class CreateChallangeWidget extends StatefulWidget {
@@ -69,21 +69,25 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: type,
-            decoration: const InputDecoration(labelText: 'Challenge Type', border: OutlineInputBorder()),
+            initialValue: type,
+            decoration: const InputDecoration(
+                labelText: 'Challenge Type', border: OutlineInputBorder()),
             items: const [
               DropdownMenuItem(value: 'Health', child: Text('Health')),
               DropdownMenuItem(value: 'Fitness', child: Text('Fitness')),
-              DropdownMenuItem(value: 'Mental Wellness', child: Text('Mental Wellness')),
-              DropdownMenuItem(value: 'Productivity', child: Text('Productivity')),
+              DropdownMenuItem(
+                  value: 'Mental Wellness', child: Text('Mental Wellness')),
+              DropdownMenuItem(
+                  value: 'Productivity', child: Text('Productivity')),
               DropdownMenuItem(value: 'Learning', child: Text('Learning')),
             ],
             onChanged: (value) => setState(() => type = value ?? 'Health'),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: difficulty,
-            decoration: const InputDecoration(labelText: 'Difficulty', border: OutlineInputBorder()),
+            initialValue: difficulty,
+            decoration: const InputDecoration(
+                labelText: 'Difficulty', border: OutlineInputBorder()),
             items: const [
               DropdownMenuItem(value: 'Easy', child: Text('Easy')),
               DropdownMenuItem(value: 'Medium', child: Text('Medium')),
@@ -98,7 +102,8 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
               borderRadius: BorderRadius.circular(4),
             ),
             title: const Text('Start Date'),
-            subtitle: Text('${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}'),
+            subtitle: Text(
+                '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}'),
             trailing: const Icon(Icons.calendar_month),
             onTap: pickStartDate,
           ),
@@ -107,7 +112,9 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
             height: 50,
             child: ElevatedButton(
               onPressed: createChallenge,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFCF4A14), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFCF4A14),
+                  foregroundColor: Colors.white),
               child: const Text('Let’s Go!'),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../home/home_widget.dart';
 
 import '../create_challange/create_challange_widget.dart';
 
@@ -11,7 +12,7 @@ class TrackerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final challenges = const [
+    const challenges = [
       ('Daily Steps', 'Fitness', '75%'),
       ('Books to Read', 'Learning', '25%'),
       ('Water Intake', 'Health', '75%'),
@@ -44,10 +45,13 @@ class TrackerWidget extends StatelessWidget {
                 children: [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(child: Icon(Icons.track_changes)),
-                    title: Text(challenge.$1, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    leading:
+                        const CircleAvatar(child: Icon(Icons.track_changes)),
+                    title: Text(challenge.$1,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(challenge.$2),
-                    trailing: Text(challenge.$3, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: Text(challenge.$3,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   LinearProgressIndicator(value: percent),
                 ],

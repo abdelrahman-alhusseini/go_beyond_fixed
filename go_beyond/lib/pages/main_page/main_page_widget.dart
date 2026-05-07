@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import '../home/home_widget.dart';
 import '../completed/completed_widget.dart';
 import '../create_challange/create_challange_widget.dart';
 import '../edit_profile/edit_profile_widget.dart';
@@ -31,12 +31,15 @@ class MainPageWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFCF4A14), Color(0xFFFFD200)]),
+              gradient: const LinearGradient(
+                  colors: [Color(0xFFCF4A14), Color(0xFFFFD200)]),
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Column(
               children: [
-                Text('DAILY MOTIVATION', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                Text('DAILY MOTIVATION',
+                    style: TextStyle(
+                        color: Colors.white70, fontWeight: FontWeight.bold)),
                 SizedBox(height: 10),
                 Text(
                   'The secret of getting ahead is getting started. Push your limits and become unstoppable.',
@@ -47,21 +50,22 @@ class MainPageWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          const Text('What would you like to do?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text('What would you like to do?',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          DashboardCard(
+          const DashboardCard(
             icon: Icons.add_circle_outline,
             title: 'Create a Challenge',
             subtitle: 'Set a new goal and start your journey',
             routeName: CreateChallangeWidget.routeName,
           ),
-          DashboardCard(
+          const DashboardCard(
             icon: Icons.track_changes,
             title: 'Track Progress',
             subtitle: 'Monitor your active challenges',
             routeName: TrackerWidget.routeName,
           ),
-          DashboardCard(
+          const DashboardCard(
             icon: Icons.emoji_events,
             title: 'Completed Challenges',
             subtitle: 'Celebrate your victories',
@@ -74,7 +78,12 @@ class MainPageWidget extends StatelessWidget {
 }
 
 class DashboardCard extends StatelessWidget {
-  const DashboardCard({super.key, required this.icon, required this.title, required this.subtitle, required this.routeName});
+  const DashboardCard(
+      {super.key,
+      required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.routeName});
 
   final IconData icon;
   final String title;

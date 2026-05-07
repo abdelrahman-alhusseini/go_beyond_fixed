@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../home/home_widget.dart';
 
 class CompletedWidget extends StatelessWidget {
   const CompletedWidget({super.key});
@@ -8,7 +9,7 @@ class CompletedWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completed = const [
+    const completed = [
       ('30-Day Run Streak', 'Fitness • Completed Mar 12', '+350 pts'),
       ('Meditation Master', 'Mindfulness • Completed Feb 28', '+280 pts'),
       ('Read 10 Books', 'Learning • Completed Jan 15', '+500 pts'),
@@ -36,12 +37,18 @@ class CompletedWidget extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Completed', style: TextStyle(color: Color(0xFFB0B0C8))),
+                    Text('Total Completed',
+                        style: TextStyle(color: Color(0xFFB0B0C8))),
                     SizedBox(height: 4),
-                    Text('24 Challenges', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text('24 Challenges',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold)),
                   ],
                 ),
-                Icon(Icons.emoji_events_rounded, color: Color(0xFFB388FF), size: 44),
+                Icon(Icons.emoji_events_rounded,
+                    color: Color(0xFFB388FF), size: 44),
               ],
             ),
           ),
@@ -53,11 +60,17 @@ class CompletedWidget extends StatelessWidget {
               child: ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: Color(0xFFB388FF),
-                  child: Icon(Icons.workspace_premium_rounded, color: Colors.white),
+                  child: Icon(Icons.workspace_premium_rounded,
+                      color: Colors.white),
                 ),
-                title: Text(item.$1, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text(item.$2, style: const TextStyle(color: Color(0xFFB0B0C8))),
-                trailing: Text(item.$3, style: const TextStyle(color: Color(0xFFFFCC02), fontWeight: FontWeight.bold)),
+                title: Text(item.$1,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: Text(item.$2,
+                    style: const TextStyle(color: Color(0xFFB0B0C8))),
+                trailing: Text(item.$3,
+                    style: const TextStyle(
+                        color: Color(0xFFFFCC02), fontWeight: FontWeight.bold)),
               ),
             ),
         ],
