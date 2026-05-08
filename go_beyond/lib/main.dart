@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -59,30 +60,86 @@ final GoRouter _router = GoRouter(
       name: CreateAccountWidget.routeName,
       builder: (context, state) => const CreateAccountWidget(),
     ),
+
+    // Protected pages
     GoRoute(
       path: MainPageWidget.routePath,
       name: MainPageWidget.routeName,
-      builder: (context, state) => const MainPageWidget(),
+      builder: (context, state) => const RequireAuth(
+        child: MainPageWidget(),
+      ),
     ),
     GoRoute(
       path: CreateChallangeWidget.routePath,
       name: CreateChallangeWidget.routeName,
-      builder: (context, state) => const CreateChallangeWidget(),
+      builder: (context, state) => const RequireAuth(
+        child: CreateChallangeWidget(),
+      ),
     ),
     GoRoute(
       path: TrackerWidget.routePath,
       name: TrackerWidget.routeName,
-      builder: (context, state) => const TrackerWidget(),
+      builder: (context, state) => const RequireAuth(
+        child: TrackerWidget(),
+      ),
     ),
     GoRoute(
       path: CompletedWidget.routePath,
       name: CompletedWidget.routeName,
-      builder: (context, state) => const CompletedWidget(),
+      builder: (context, state) => const RequireAuth(
+        child: CompletedWidget(),
+      ),
     ),
     GoRoute(
       path: EditProfileWidget.routePath,
       name: EditProfileWidget.routeName,
-      builder: (context, state) => const EditProfileWidget(),
+      builder: (context, state) => const RequireAuth(
+        child: EditProfileWidget(),
+      ),
     ),
   ],
 );
+
+class RequireAuth extends StatelessWidget {
+  const RequireAuth({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        final isWaiting = snapshot.connectionState == ConnectionState.waiting;
+        final user = snapshot.data;
+
+        if (isWaiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (user == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              context.goNamed(HomeWidget.routeName);
+            }
+          });
+
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        return child;
+      },
+    );
+  }
+}

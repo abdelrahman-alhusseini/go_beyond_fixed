@@ -1,16 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../home/home_widget.dart';
+
+import '/utils/daily_motivation.dart';
 import '../completed/completed_widget.dart';
 import '../create_challange/create_challange_widget.dart';
 import '../edit_profile/edit_profile_widget.dart';
 import '../tracker/tracker_widget.dart';
 
-class MainPageWidget extends StatelessWidget {
+class MainPageWidget extends StatefulWidget {
   const MainPageWidget({super.key});
 
   static const String routeName = 'MainPage';
   static const String routePath = '/mainPage';
+
+  @override
+  State<MainPageWidget> createState() => _MainPageWidgetState();
+}
+
+class _MainPageWidgetState extends State<MainPageWidget> {
+  String motivationMessage = 'Loading your motivation...';
+
+  @override
+  void initState() {
+    super.initState();
+    loadMotivation();
+  }
+
+  Future<void> loadMotivation() async {
+    final message = await DailyMotivation.getCurrentSignInMessage();
+
+    if (!mounted) return;
+
+    setState(() {
+      motivationMessage = message;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +44,7 @@ class MainPageWidget extends StatelessWidget {
         title: const Text('GoBeyond Dashboard'),
         actions: [
           IconButton(
+            tooltip: 'Edit Profile',
             onPressed: () => context.pushNamed(EditProfileWidget.routeName),
             icon: const Icon(Icons.person_outline),
           ),
@@ -32,26 +57,43 @@ class MainPageWidget extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                  colors: [Color(0xFFCF4A14), Color(0xFFFFD200)]),
+                colors: [
+                  Color(0xFFCF4A14),
+                  Color(0xFFFFD200),
+                ],
+              ),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Text('DAILY MOTIVATION',
-                    style: TextStyle(
-                        color: Colors.white70, fontWeight: FontWeight.bold)),
-                SizedBox(height: 10),
+                const Text(
+                  'DAILY MOTIVATION',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Text(
-                  'The secret of getting ahead is getting started. Push your limits and become unstoppable.',
+                  motivationMessage,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 18),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 22),
-          const Text('What would you like to do?',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text(
+            'What would you like to do?',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           const DashboardCard(
             icon: Icons.add_circle_outline,
@@ -78,12 +120,13 @@ class MainPageWidget extends StatelessWidget {
 }
 
 class DashboardCard extends StatelessWidget {
-  const DashboardCard(
-      {super.key,
-      required this.icon,
-      required this.title,
-      required this.subtitle,
-      required this.routeName});
+  const DashboardCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.routeName,
+  });
 
   final IconData icon;
   final String title;
@@ -98,11 +141,20 @@ class DashboardCard extends StatelessWidget {
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
           backgroundColor: const Color(0x22CF4A14),
-          child: Icon(icon, color: const Color(0xFFCF4A14)),
+          child: Icon(
+            icon,
+            color: const Color(0xFFCF4A14),
+          ),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+        trailing: const Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: 18,
+        ),
         onTap: () => context.pushNamed(routeName),
       ),
     );

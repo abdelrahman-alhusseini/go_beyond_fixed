@@ -17,6 +17,8 @@ class CreateChallangeWidget extends StatefulWidget {
 
 class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
   final nameController = TextEditingController();
+  final targetController = TextEditingController();
+  final unitController = TextEditingController();
 
   String type = 'Health';
   String difficulty = 'Easy';
@@ -24,8 +26,17 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
   bool isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    targetController.text = '100';
+    unitController.text = 'points';
+  }
+
+  @override
   void dispose() {
     nameController.dispose();
+    targetController.dispose();
+    unitController.dispose();
     super.dispose();
   }
 
@@ -44,25 +55,37 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
     }
   }
 
+  void goBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.goNamed(TrackerWidget.routeName);
+    }
+  }
+
   Future<void> createChallenge() async {
     final user = FirebaseAuth.instance.currentUser;
     final name = nameController.text.trim();
+    final target = double.tryParse(targetController.text.trim());
+    final unit = unitController.text.trim();
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to create a challenge.'),
-        ),
-      );
+      showMessage('You must be logged in to create a challenge.');
       return;
     }
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a challenge name.'),
-        ),
-      );
+      showMessage('Please enter a challenge name.');
+      return;
+    }
+
+    if (target == null || target <= 0) {
+      showMessage('Please enter a valid target number.');
+      return;
+    }
+
+    if (unit.isEmpty) {
+      showMessage('Please enter a unit, like steps, pages, days, or sessions.');
       return;
     }
 
@@ -78,27 +101,23 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
         'startDate': Timestamp.fromDate(startDate),
         'status': 'active',
         'userId': user.uid,
+
+        // Tracking fields
+        'targetValue': target,
+        'currentValue': 0.0,
+        'unit': unit,
+        'progress': 0.0,
+
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Challenge created: $name'),
-        ),
-      );
-
+      showMessage('Challenge created successfully.');
       context.goNamed(TrackerWidget.routeName);
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not create challenge: $e'),
-        ),
-      );
+      showMessage('Could not create challenge: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -106,6 +125,14 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
         });
       }
     }
+  }
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   String get formattedStartDate {
@@ -121,6 +148,10 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Challenge'),
+        leading: IconButton(
+          onPressed: isLoading ? null : goBack,
+          icon: const Icon(Icons.arrow_back),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(18),
@@ -145,14 +176,11 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
               DropdownMenuItem(value: 'Health', child: Text('Health')),
               DropdownMenuItem(value: 'Fitness', child: Text('Fitness')),
               DropdownMenuItem(
-                value: 'Mental Wellness',
-                child: Text('Mental Wellness'),
-              ),
+                  value: 'Mental Wellness', child: Text('Mental Wellness')),
               DropdownMenuItem(
-                value: 'Productivity',
-                child: Text('Productivity'),
-              ),
+                  value: 'Productivity', child: Text('Productivity')),
               DropdownMenuItem(value: 'Learning', child: Text('Learning')),
+              DropdownMenuItem(value: 'Finance', child: Text('Finance')),
             ],
             onChanged: isLoading
                 ? null
@@ -183,6 +211,30 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
                   },
           ),
           const SizedBox(height: 16),
+          TextField(
+            controller: targetController,
+            enabled: !isLoading,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Target Number',
+              hintText: 'Example: 10000',
+              helperText: 'The total goal you want to reach.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: unitController,
+            enabled: !isLoading,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Unit',
+              hintText: 'Example: steps',
+              helperText: 'Examples: steps, pages, days, sessions.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
           ListTile(
             shape: RoundedRectangleBorder(
               side: const BorderSide(color: Colors.black26),
@@ -211,7 +263,7 @@ class _CreateChallangeWidgetState extends State<CreateChallangeWidget> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Let’s Go!'),
+                  : const Text('Create Challenge'),
             ),
           ),
         ],

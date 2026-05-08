@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/utils/daily_motivation.dart';
 import '/utils/validators.dart';
 import '../home/home_widget.dart';
 import '../login1/login1_widget.dart';
@@ -96,6 +97,8 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      await DailyMotivation.chooseNewForSignIn();
 
       if (!mounted) return;
 

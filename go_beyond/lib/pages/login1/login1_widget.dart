@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/utils/daily_motivation.dart';
 import '/utils/validators.dart';
 import '../create_account/create_account_widget.dart';
 import '../home/home_widget.dart';
@@ -62,6 +63,8 @@ class _Login1WidgetState extends State<Login1Widget> {
         email: email,
         password: password,
       );
+
+      await DailyMotivation.chooseNewForSignIn();
 
       if (!mounted) return;
 
