@@ -157,6 +157,14 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
     }
   }
 
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    context.goNamed(HomeWidget.routeName);
+  }
+
   @override
   void dispose() {
     nameController.dispose();
@@ -179,6 +187,13 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
+        actions: [
+          TextButton.icon(
+            onPressed: isSaving ? null : logout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Log Out'),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(18),
@@ -251,10 +266,10 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
             ),
           ),
           const SizedBox(height: 12),
-          TextButton(
-            onPressed:
-                isSaving ? null : () => context.goNamed(HomeWidget.routeName),
-            child: const Text('Back to Home'),
+          OutlinedButton.icon(
+            onPressed: isSaving ? null : logout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Log Out'),
           ),
         ],
       ),

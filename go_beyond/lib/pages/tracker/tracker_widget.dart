@@ -12,6 +12,14 @@ class TrackerWidget extends StatelessWidget {
   static const String routeName = 'Tracker';
   static const String routePath = '/tracker';
 
+  Future<void> logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!context.mounted) return;
+
+    context.goNamed(HomeWidget.routeName);
+  }
+
   Future<void> markCompleted({
     required BuildContext context,
     required String challengeId,
@@ -22,6 +30,7 @@ class TrackerWidget extends StatelessWidget {
           .doc(challengeId)
           .update({
         'status': 'completed',
+        'progress': 1,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -63,6 +72,160 @@ class TrackerWidget extends StatelessWidget {
     }
   }
 
+  Future<void> showUpdateProgressDialog({
+    required BuildContext context,
+    required String challengeId,
+    required Map<String, dynamic> data,
+  }) async {
+    final targetValue = _toDouble(data['targetValue'], fallback: 100);
+    final currentValue = _toDouble(data['currentValue'], fallback: 0);
+    final unit = data['unit'] as String? ?? 'points';
+    final note = data['notes'] as String? ?? '';
+
+    final progressController = TextEditingController(
+      text: currentValue.toStringAsFixed(currentValue % 1 == 0 ? 0 : 1),
+    );
+    final noteController = TextEditingController(text: note);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        bool isSaving = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> saveProgress() async {
+              final newValue = double.tryParse(progressController.text.trim());
+
+              if (newValue == null || newValue < 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid progress number.'),
+                  ),
+                );
+                return;
+              }
+
+              final progress = (newValue / targetValue).clamp(0.0, 1.0);
+              final status = progress >= 1 ? 'completed' : 'active';
+
+              setDialogState(() {
+                isSaving = true;
+              });
+
+              try {
+                await FirebaseFirestore.instance
+                    .collection('challenges')
+                    .doc(challengeId)
+                    .update({
+                  'currentValue': newValue,
+                  'progress': progress,
+                  'notes': noteController.text.trim(),
+                  'status': status,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+
+                if (!context.mounted) return;
+
+                Navigator.of(dialogContext).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      status == 'completed'
+                          ? 'Progress saved. Challenge completed!'
+                          : 'Progress updated.',
+                    ),
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not save progress: $e')),
+                );
+              } finally {
+                setDialogState(() {
+                  isSaving = false;
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Update Progress'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Target: ${_formatNumber(targetValue)} $unit',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: progressController,
+                    enabled: !isSaving,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Current progress',
+                      suffixText: unit,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: noteController,
+                    enabled: !isSaving,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Progress note',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      isSaving ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving ? null : saveProgress,
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    progressController.dispose();
+    noteController.dispose();
+  }
+
+  static double _toDouble(dynamic value, {required double fallback}) {
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+
+    return fallback;
+  }
+
+  static String _formatNumber(double value) {
+    if (value % 1 == 0) {
+      return value.toInt().toString();
+    }
+
+    return value.toStringAsFixed(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -98,15 +261,22 @@ class TrackerWidget extends StatelessWidget {
 
     final challengesQuery = FirebaseFirestore.instance
         .collection('challenges')
-        .where('userId', isEqualTo: user.uid);
+        .where('userId', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'active');
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Challenges'),
         actions: [
           IconButton(
+            tooltip: 'Create Challenge',
             onPressed: () => context.pushNamed(CreateChallangeWidget.routeName),
             icon: const Icon(Icons.add_rounded),
+          ),
+          TextButton.icon(
+            onPressed: () => logout(context),
+            icon: const Icon(Icons.logout),
+            label: const Text('Log Out'),
           ),
         ],
       ),
@@ -143,7 +313,7 @@ class TrackerWidget extends StatelessWidget {
                     const Icon(Icons.track_changes, size: 56),
                     const SizedBox(height: 16),
                     const Text(
-                      'No challenges yet.',
+                      'No active challenges yet.',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -177,7 +347,13 @@ class TrackerWidget extends StatelessWidget {
               final title = data['title'] as String? ?? 'Untitled Challenge';
               final type = data['type'] as String? ?? 'General';
               final difficulty = data['difficulty'] as String? ?? 'Easy';
-              final status = data['status'] as String? ?? 'active';
+              final unit = data['unit'] as String? ?? 'points';
+              final currentValue = _toDouble(data['currentValue'], fallback: 0);
+              final targetValue = _toDouble(data['targetValue'], fallback: 100);
+              final progress =
+                  _toDouble(data['progress'], fallback: 0).clamp(0.0, 1.0);
+              final notes = data['notes'] as String? ?? '';
+              final percent = (progress * 100).round();
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -188,17 +364,11 @@ class TrackerWidget extends StatelessWidget {
                     children: [
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor: status == 'completed'
-                              ? Colors.green.shade100
-                              : const Color(0xFFFFE0D2),
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFFFE0D2),
                           child: Icon(
-                            status == 'completed'
-                                ? Icons.check_rounded
-                                : Icons.track_changes,
-                            color: status == 'completed'
-                                ? Colors.green
-                                : const Color(0xFFCF4A14),
+                            Icons.track_changes,
+                            color: Color(0xFFCF4A14),
                           ),
                         ),
                         title: Text(
@@ -207,9 +377,17 @@ class TrackerWidget extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        subtitle: Text('$type • $difficulty • $status'),
+                        subtitle: Text('$type • $difficulty'),
                         trailing: PopupMenuButton<String>(
                           onSelected: (value) {
+                            if (value == 'update') {
+                              showUpdateProgressDialog(
+                                context: context,
+                                challengeId: doc.id,
+                                data: data,
+                              );
+                            }
+
                             if (value == 'complete') {
                               markCompleted(
                                 context: context,
@@ -224,13 +402,16 @@ class TrackerWidget extends StatelessWidget {
                               );
                             }
                           },
-                          itemBuilder: (context) => [
-                            if (status != 'completed')
-                              const PopupMenuItem(
-                                value: 'complete',
-                                child: Text('Mark completed'),
-                              ),
-                            const PopupMenuItem(
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'update',
+                              child: Text('Update progress'),
+                            ),
+                            PopupMenuItem(
+                              value: 'complete',
+                              child: Text('Mark completed'),
+                            ),
+                            PopupMenuItem(
                               value: 'delete',
                               child: Text('Delete'),
                             ),
@@ -238,9 +419,24 @@ class TrackerWidget extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: status == 'completed' ? 1 : 0.25,
+                      Text(
+                        '${_formatNumber(currentValue)} / ${_formatNumber(targetValue)} $unit',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(value: progress),
+                      const SizedBox(height: 6),
+                      Text('$percent% completed'),
+                      if (notes.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          notes,
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

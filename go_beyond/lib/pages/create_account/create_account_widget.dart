@@ -100,32 +100,16 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
       if (!mounted) return;
 
       showMessage('Account created successfully.');
-
       context.goNamed(MainPageWidget.routeName);
     } on FirebaseAuthException catch (e) {
-      debugPrint('Firebase Auth Error Code: ${e.code}');
-      debugPrint('Firebase Auth Error Message: ${e.message}');
-
-      String message = 'Firebase Auth Error: ${e.code}';
-
-      if (e.message != null && e.message!.isNotEmpty) {
-        message = 'Firebase Auth Error: ${e.code} - ${e.message}';
-      }
-
-      showMessage(message);
+      showMessage(
+        'Firebase Auth Error: ${e.code}${e.message == null ? '' : ' - ${e.message}'}',
+      );
     } on FirebaseException catch (e) {
-      debugPrint('Firebase Error Code: ${e.code}');
-      debugPrint('Firebase Error Message: ${e.message}');
-
-      String message = 'Firebase Error: ${e.code}';
-
-      if (e.message != null && e.message!.isNotEmpty) {
-        message = 'Firebase Error: ${e.code} - ${e.message}';
-      }
-
-      showMessage(message);
+      showMessage(
+        'Firebase Error: ${e.code}${e.message == null ? '' : ' - ${e.message}'}',
+      );
     } catch (e) {
-      debugPrint('Unexpected Error: $e');
       showMessage('Unexpected Error: $e');
     } finally {
       if (mounted) {
@@ -142,7 +126,7 @@ class _CreateAccountWidgetState extends State<CreateAccountWidget> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 7),
+        duration: const Duration(seconds: 6),
       ),
     );
   }
