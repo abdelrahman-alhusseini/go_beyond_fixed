@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import 'utils/guest_session.dart';
 import 'firebase_options.dart';
 import 'pages/completed/completed_widget.dart';
 import 'pages/create_account/create_account_widget.dart';
@@ -110,6 +110,10 @@ class RequireAuth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (GuestSession.isGuest) {
+      return child;
+    }
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {

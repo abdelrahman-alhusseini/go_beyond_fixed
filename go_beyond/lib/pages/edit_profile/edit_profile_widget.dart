@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/utils/guest_session.dart';
 import '../home/home_widget.dart';
+import '../main_page/main_page_widget.dart';
 
 class EditProfileWidget extends StatefulWidget {
   const EditProfileWidget({super.key});
@@ -27,7 +29,23 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
   @override
   void initState() {
     super.initState();
-    loadProfileFromFirebase();
+
+    if (GuestSession.isGuest) {
+      loadGuestProfile();
+    } else {
+      loadProfileFromFirebase();
+    }
+  }
+
+  void loadGuestProfile() {
+    nameController.text = 'Guest User';
+    emailController.text = 'guest@gobeyond.app';
+    cityController.text = '';
+    bioController.text = 'Guest mode does not save profile information.';
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   Future<void> loadProfileFromFirebase() async {
@@ -36,12 +54,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
     if (user == null) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to edit your profile.'),
-        ),
-      );
-
+      GuestSession.end();
       context.goNamed(HomeWidget.routeName);
       return;
     }
@@ -74,13 +87,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
         });
       }
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not load profile: $e'),
-        ),
-      );
+      showMessage('Could not load profile: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -91,14 +98,15 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
   }
 
   Future<void> saveProfile() async {
+    if (GuestSession.isGuest) {
+      showMessage('Guest profile cannot be saved. Please create an account.');
+      return;
+    }
+
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to save your profile.'),
-        ),
-      );
+      showMessage('You must be logged in to save your profile.');
       return;
     }
 
@@ -107,11 +115,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
     final bio = bioController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your name.'),
-        ),
-      );
+      showMessage('Please enter your name.');
       return;
     }
 
@@ -133,21 +137,10 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile saved successfully.'),
-        ),
-      );
-
+      showMessage('Profile saved successfully.');
       context.pop();
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not save profile: $e'),
-        ),
-      );
+      showMessage('Could not save profile: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -158,11 +151,34 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
   }
 
   Future<void> logout() async {
-    await FirebaseAuth.instance.signOut();
+    GuestSession.end();
+
+    if (FirebaseAuth.instance.currentUser != null) {
+      await FirebaseAuth.instance.signOut();
+    }
 
     if (!mounted) return;
 
     context.goNamed(HomeWidget.routeName);
+  }
+
+  void goBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.goNamed(MainPageWidget.routeName);
+    }
+  }
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   @override
@@ -184,14 +200,20 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
       );
     }
 
+    final isGuest = GuestSession.isGuest;
+
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: isSaving ? null : goBack,
+          icon: const Icon(Icons.arrow_back),
+        ),
         title: const Text('Edit Profile'),
         actions: [
           TextButton.icon(
             onPressed: isSaving ? null : logout,
             icon: const Icon(Icons.logout),
-            label: const Text('Log Out'),
+            label: Text(isGuest ? 'Exit Guest' : 'Log Out'),
           ),
         ],
       ),
@@ -200,12 +222,31 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
         children: [
           const CircleAvatar(
             radius: 48,
-            child: Icon(Icons.person, size: 58),
+            backgroundColor: Color(0xFFFFE0D2),
+            child: Icon(
+              Icons.person,
+              size: 58,
+              color: Color(0xFFCF4A14),
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          if (isGuest)
+            Container(
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFCC99)),
+              ),
+              child: const Text(
+                'You are using Guest Mode. You can view this page, but profile changes will not be saved.',
+                textAlign: TextAlign.center,
+              ),
+            ),
           TextField(
             controller: nameController,
-            enabled: !isSaving,
+            enabled: !isSaving && !isGuest,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Your Name',
@@ -226,7 +267,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
           const SizedBox(height: 16),
           TextField(
             controller: cityController,
-            enabled: !isSaving,
+            enabled: !isSaving && !isGuest,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Your City',
@@ -236,7 +277,7 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
           const SizedBox(height: 16),
           TextField(
             controller: bioController,
-            enabled: !isSaving,
+            enabled: !isSaving && !isGuest,
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
@@ -262,14 +303,14 @@ class _EditProfileWidgetState extends State<EditProfileWidget> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Save Changes'),
+                  : Text(isGuest ? 'Create Account to Save' : 'Save Changes'),
             ),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: isSaving ? null : logout,
             icon: const Icon(Icons.logout),
-            label: const Text('Log Out'),
+            label: Text(isGuest ? 'Exit Guest Mode' : 'Log Out'),
           ),
         ],
       ),

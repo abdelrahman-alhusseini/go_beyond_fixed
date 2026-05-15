@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/utils/guest_session.dart';
 import '../create_account/create_account_widget.dart';
 import '../login1/login1_widget.dart';
 import '../main_page/main_page_widget.dart';
@@ -73,7 +74,10 @@ class HomeWidget extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () => context.pushNamed(CreateAccountWidget.routeName),
+                      onPressed: () {
+                        GuestSession.end();
+                        context.pushNamed(CreateAccountWidget.routeName);
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF8800),
                         foregroundColor: const Color(0xFF1A0A00),
@@ -86,17 +90,26 @@ class HomeWidget extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton(
-                      onPressed: () => context.pushNamed(Login1Widget.routeName),
+                      onPressed: () {
+                        GuestSession.end();
+                        context.pushNamed(Login1Widget.routeName);
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFFF8800),
-                        side: const BorderSide(color: Color(0xFFFF8800), width: 2),
+                        side: const BorderSide(
+                          color: Color(0xFFFF8800),
+                          width: 2,
+                        ),
                       ),
                       child: const Text('Log In'),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
-                    onPressed: () => context.goNamed(MainPageWidget.routeName),
+                    onPressed: () {
+                      GuestSession.start();
+                      context.goNamed(MainPageWidget.routeName);
+                    },
                     child: const Text(
                       'Continue as Guest',
                       style: TextStyle(color: Color(0xFFFFCC66)),
@@ -106,11 +119,18 @@ class HomeWidget extends StatelessWidget {
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.help_outline_rounded, color: Color(0x66FF9933), size: 18),
+                      Icon(
+                        Icons.help_outline_rounded,
+                        color: Color(0x66FF9933),
+                        size: 18,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Need help? Visit our Support Center',
-                        style: TextStyle(color: Color(0x66FF9933), fontSize: 13),
+                        style: TextStyle(
+                          color: Color(0x66FF9933),
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),

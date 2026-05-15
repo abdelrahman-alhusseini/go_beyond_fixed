@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/utils/guest_session.dart';
 import '../create_challange/create_challange_widget.dart';
 import '../home/home_widget.dart';
 import '../main_page/main_page_widget.dart';
@@ -14,7 +15,11 @@ class TrackerWidget extends StatelessWidget {
   static const String routePath = '/tracker';
 
   Future<void> logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
+    GuestSession.end();
+
+    if (FirebaseAuth.instance.currentUser != null) {
+      await FirebaseAuth.instance.signOut();
+    }
 
     if (!context.mounted) return;
 
